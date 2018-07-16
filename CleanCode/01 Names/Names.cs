@@ -2,9 +2,9 @@
 
 namespace CleanCode.Names
 {
-    public class GraphicEditor
+    public class GraphicsEditor
     {
-        public Bitmap BitmapDrawer(string fileName)
+        public Bitmap bitmapDrawer(string fileName)
         {
             var bitmap = new Bitmap(fileName);
             var image = Graphics.FromImage(bitmap);
