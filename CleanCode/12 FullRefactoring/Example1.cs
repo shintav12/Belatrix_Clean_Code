@@ -1,3 +1,4 @@
+using CleanCode._12_FullRefactoring;
 using System;
 using System.Collections;
 using System.Collections.Generic;
@@ -9,59 +10,62 @@ namespace Project.UserControls
 {
     public class PostControl : System.Web.UI.UserControl
     {
-        private PostDbContext DBContext;
+        private readonly PostValidator _validator;
+        private readonly PostRepository _postRepository;
 
-
-        protected void Page_Load(object sender, EventArgs e)
+        public PostControl()
         {
-            DBContext = new PostDbContext();
+            _validator = new PostValidator();
+            _postRepository = new PostRepository();
+        }
 
-            if (Page.IsPostBack)
+        public void ShowErrors(ValidationResult results)
+        {
+            BulletedList summary = (BulletedList)FindControl("ErrorSummary");
+            foreach (var failure in results.Errors)
             {
-                PostValidator validator = new PostValidator();
-                Post entity = new Post()
-                {
-                    // Map form fields to entity properties
-                    Id = Convert.ToInt32(PostId.Value),
-                    Title = PostTitle.Text.Trim(),
-                    Body = PostBody.Text.Trim()
-                };
-                ValidationResult results = validator.Validate(entity);
+                Label errorMessage = FindControl(failure.PropertyName + "Error") as Label;
 
-                if (results.IsValid)
+                if (errorMessage == null)
                 {
-                    // Save to the database and continue to the next page
-                    DBContext.Posts.Add(entity);
-                    DBContext.SaveChanges();
+                    summary.Items.Add(new ListItem(failure.ErrorMessage));
                 }
                 else
                 {
-                    BulletedList summary = (BulletedList)FindControl("ErrorSummary");
-
-                    // Display errors to the user
-                    foreach (var failure in results.Errors)
-                    {
-                        Label errorMessage = FindControl(failure.PropertyName + "Error") as Label;
-
-                        if (errorMessage == null)
-                        {
-                            summary.Items.Add(new ListItem(failure.ErrorMessage));
-                        }
-                        else
-                        {
-                            errorMessage.Text = failure.ErrorMessage;
-                        }
-                    }
+                    errorMessage.Text = failure.ErrorMessage;
                 }
             }
-            else
-            {
-                // Display form
-                Post entity = DBContext.Posts.SingleOrDefault(p => p.Id == Convert.ToInt32(Request.QueryString["id"]));
-                PostBody.Text = entity.Body;
-                PostTitle.Text = entity.Title;
+        }
 
-            }
+        public void TryToSave()
+        {
+            Post entity = new Post()
+            {
+                Id = Convert.ToInt32(PostId.Value),
+                Title = PostTitle.Text.Trim(),
+                Body = PostBody.Text.Trim()
+            };
+
+            ValidationResult results = _validator.Validate(entity);
+
+            if (results.IsValid)
+                _postRepository.Save(entity);
+            else
+                ShowErrors(results);
+        }
+
+        public void ShowForm(Post entity)
+        {
+            PostBody.Text = entity.Body;
+            PostTitle.Text = entity.Title;
+        }
+
+        protected void Page_Load(object sender, EventArgs e)
+        {
+            if (Page.IsPostBack)
+                TryToSave();
+            else
+                ShowForm(_postRepository.GetById(Convert.ToInt32(Request.QueryString["id"])));
         }
 
         public Label PostBody { get; set; }
@@ -85,61 +89,13 @@ namespace Project.UserControls
         public string ErrorMessage { get; set; }
     }
 
-    public class Post
-    {
-        public int Id { get; set; }
-        public string Title { get; set; }
-        public string Body { get; set; }
-    }
-
     public class PostValidator
     {
         public ValidationResult Validate(Post entity)
         {
             throw new NotImplementedException();
         }
-    }
-
-    public class DbSet<T> : IQueryable<T>
-    {
-        public void Add(T entity)
-        {
-        }
-
-        public IEnumerator<T> GetEnumerator()
-        {
-            throw new NotImplementedException();
-        }
-
-        IEnumerator IEnumerable.GetEnumerator()
-        {
-            return GetEnumerator();
-        }
-
-        public Expression Expression
-        {
-            get { throw new NotImplementedException(); }
-        }
-
-        public Type ElementType
-        {
-            get { throw new NotImplementedException(); }
-        }
-
-        public IQueryProvider Provider
-        {
-            get { throw new NotImplementedException(); }
-        }
-    }
-
-    public class PostDbContext
-    {
-        public DbSet<Post> Posts { get; set; }
-
-        public void SaveChanges()
-        {
-        }
-    }
+    }  
     #endregion
 
 }
